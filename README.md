@@ -1,26 +1,4 @@
-# Daily LeetCode - Dart Solutions
-
----
-
-## Repository structure
-
-```
-/
-├── README.md                  ← you are here
-├── solutions/
-│   ├── 0735_asteroid_collision/
-│   │   ├── solution.dart
-│   │   └── explanation.md
-│   ├── 2751_robot_collisions/
-│   │   ├── solution.dart
-│   │   └── explanation.md
-│   └── ...
-└── templates/
-    ├── solution_template.dart
-    └── explanation_template.md
-```
-
----
+# Daily LeetCode Solutions
 
 ## Solution file anatomy
 
