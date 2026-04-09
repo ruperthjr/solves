@@ -16,7 +16,7 @@ You would land on buckets 1 and 3. Their numbers become `3×3=9` and `5×3=15`.
 
 After using all the cans, you **XOR** all the final numbers together. That's the answer.
 
-The tricky part: there can be **100,000** buckets and **100,000** paint cans.
+The tricky part"../3655_XOR _After_Range_Multiplication_Queries_II": there can be **100,000** buckets and **100,000** paint cans.
 If we paint bucket by bucket for each can, it could take forever — especially when K=1 (you paint every bucket!).
 
 ### 2. The big idea: split fast jumps from slow jumps
