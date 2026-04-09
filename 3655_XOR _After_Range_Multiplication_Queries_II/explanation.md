@@ -87,3 +87,60 @@ It's just like a difference array for addition, but with multiplication and modu
 **Input:**
 nums = [2, 3, 1, 5, 4]
 queries = [[1,4,2,3], [0,2,1,2]]
+
+**Step 1: n=5 → B = ceil(√5) = 3.**
+
+**Step 2: Separate queries**
+- Query1: K=2 ≤ 3 → small group. `rem = 1%2 = 1`. Key = `"2|1"`.
+- Query2: K=1 ≤ 3 → small group. `rem = 0%1 = 0`. Key = `"1|0"`.
+- No large K queries.
+
+**Step 3: Process group "2|1"**
+- Buckets with rem=1: indices 1 and 3 → M=2.
+- multDiff = [1,1,1]
+- Query1: l=1,r=4,k=2,v=3 → leftIdx=0, rightIdx=1.
+  - multDiff[0] = 1*3 = 3
+  - inv(3)=333333336 → multDiff[2] = 1*333333336 = 333333336
+- Sweep:
+  - i=0: currentMult=3 → nums[1] = 3*3 = 9
+  - i=1: currentMult = 3*333333336 % MOD = 1 → nums[3] = 5*1 = 5? Wait, 15*1=15.
+- Array becomes: [2, 9, 1, 15, 4]
+
+**Step 4: Process group "1|0"**
+- All 5 buckets → M=5.
+- multDiff size 6 = [1,1,1,1,1,1]
+- Query2: l=0,r=2,v=2 → leftIdx=0, rightIdx=2.
+  - multDiff[0] = 2
+  - inv(2)=500000004 → multDiff[3] = 500000004
+- Sweep:
+  - i=0: cur=2 → nums[0] = 2*2 = 4
+  - i=1: cur=2 → nums[1] = 9*2 = 18
+  - i=2: cur=2 → nums[2] = 1*2 = 2
+  - i=3: cur = 2*500000004 % MOD = 1 → nums[3] = 15*1 = 15
+  - i=4: cur=1 → nums[4] = 4*1 = 4
+- Final: [4, 18, 2, 15, 4]
+
+**Step 5: XOR all**
+- 4 ^ 18 = 22
+- 22 ^ 2 = 20
+- 20 ^ 15 = 27
+- 27 ^ 4 = 31
+
+**Output: 31** 
+
+### 7. Complexity
+
+- **Time:** O((n + q) * √n)  
+  Large K: O(q * √n) because each query touches at most √n elements.  
+  Small K: O(n * √n) for sweeps + O(q) for processing queries (each query processed once in its group).  
+  In practice, very efficient for n,q ≤ 10⁵.
+
+- **Space:** O(n) for the result array and the difference arrays used per group (total across all groups ≤ O(n)).
+
+### 8. Connection to other problems
+
+This problem combines two classic patterns:
+
+1. **Range Addition** (LeetCode 370) — where we use a difference array for adding values over ranges. Here we use a *multiplicative* difference array with modular inverses.
+
+2. **Square Root Decomposition** — used in problems like "Range Sum Query – Mutable" to balance update and query costs. The same split‑by‑step‑size trick appears in "Count of Range Sum" (when merging by step).
