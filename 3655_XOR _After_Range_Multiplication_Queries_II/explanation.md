@@ -85,3 +85,5 @@ It's just like a difference array for addition, but with multiplication and modu
 ### 6. Dry run of example 2
 
 **Input:**
+nums = [2, 3, 1, 5, 4]
+queries = [[1,4,2,3], [0,2,1,2]]
