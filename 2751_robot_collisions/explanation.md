@@ -1,6 +1,6 @@
 ## 2751. Robot Collisions – Step‑by‑Step Explanation
 
-### 1. Understanding the problem (like I'm 5 years old)
+### 1. Understanding the problem
 
 Imagine a **straight road**. Robots are placed at different positions.
 All robots start moving at the **same speed**.
