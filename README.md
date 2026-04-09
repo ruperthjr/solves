@@ -35,3 +35,4 @@ Every `explanation.md` contains:
 | # | Problem | Difficulty | Topic | Day |
 |---|---------|------------|-------|-----|
 | 2751 | [Robot Collisions](solves/2751_robot_collisions/) | Hard | Stack | 1 |
+| 3655 | [XOR After Range Multiplication Queries II](solves/3655_XOR_After_Range_Multiplication_Queries_II/) | Hard | Math, Square Root Decomposition | 2 |
