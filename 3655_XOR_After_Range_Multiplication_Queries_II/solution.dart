@@ -80,7 +80,8 @@ class Solution {
 
     // 1. Large K queries: apply directly
     for (var q in largeKQueries) {
-      int l = q[0], r = q[1], k = q[2], v = q[3];
+      int l = q[0], k = q[2], v = q[3];
+      int r = q[1];
       for (int idx = l; idx <= r; idx += k) {
         result[idx] = (result[idx] * v) % MOD;
       }
