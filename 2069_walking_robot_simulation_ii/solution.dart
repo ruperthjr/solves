@@ -7,80 +7,90 @@
 // INTUITION:
 // The robot only ever moves on the outer perimeter of the grid.
 // The perimeter forms a cycle of length P = 2*(width + height) - 4.
-// We can precompute the sequence of (x, y, dir) along this cycle.
-// For step(num), we advance the current index by (num % P) and update position/direction.
-// This avoids simulating every single step when num is large.
+// We can simulate the first P steps and store the resulting (x, y, dir) for each step.
+// For step(num), we add num to totalSteps and map (totalSteps-1) % P to the list.
+// This correctly handles the direction change at corners (e.g., (0,0) is East at start,
+// but South after completing a lap).
 
 class Robot {
-  late List<_Cell> _perimeter;
+  late int _width, _height;
   late int _perimeterLen;
-  late int _idx; // current position in the perimeter list
+  late List<_State> _states; // states after 1,2,...,P steps
+  int _stepsTaken = 0;
 
   Robot(int width, int height) {
-    _perimeter = [];
-    // Build the perimeter in clockwise order starting from (0,0) facing East.
-    // East along bottom edge
-    for (int x = 0; x < width; x++) {
-      _perimeter.add(_Cell(x, 0, 'East'));
-    }
-    // North along right edge (skip (width-1,0) already added)
-    for (int y = 1; y < height; y++) {
-      _perimeter.add(_Cell(width - 1, y, 'North'));
-    }
-    // West along top edge (skip (width-1,height-1) already added)
-    if (height > 1) {
-      for (int x = width - 2; x >= 0; x--) {
-        _perimeter.add(_Cell(x, height - 1, 'West'));
+    _width = width;
+    _height = height;
+    _perimeterLen = 2 * (width + height) - 4;
+    _states = [];
+    _buildPerimeterStates();
+  }
+
+  void _buildPerimeterStates() {
+    // Simulate robot movement for _perimeterLen steps, recording state after each step.
+    int x = 0, y = 0;
+    int dir = 0; // 0: East, 1: North, 2: West, 3: South
+    const dirs = [
+      [1, 0],  // East
+      [0, 1],  // North
+      [-1, 0], // West
+      [0, -1]  // South
+    ];
+    const dirNames = ['East', 'North', 'West', 'South'];
+
+    for (int step = 0; step < _perimeterLen; step++) {
+      // Attempt to move one step in current direction
+      int nx = x + dirs[dir][0];
+      int ny = y + dirs[dir][1];
+      // If out of bounds, turn counter‑clockwise and recompute next step
+      if (nx < 0 || nx >= _width || ny < 0 || ny >= _height) {
+        dir = (dir + 1) % 4; // turn left (counter‑clockwise)
+        nx = x + dirs[dir][0];
+        ny = y + dirs[dir][1];
       }
+      // Move to the new cell
+      x = nx;
+      y = ny;
+      _states.add(_State(x, y, dirNames[dir]));
     }
-    // South along left edge (skip (0,height-1) already added, and stop before (0,0))
-    if (width > 1) {
-      for (int y = height - 2; y > 0; y--) {
-        _perimeter.add(_Cell(0, y, 'South'));
-      }
-    }
-    _perimeterLen = _perimeter.length;
-    _idx = 0; // start at (0,0) facing East
   }
 
   void step(int num) {
-    // The robot moves along the cycle. After moving, it may end up at a different cell.
-    // Use modulo to skip full laps.
-    int move = num % _perimeterLen;
-    _idx = (_idx + move) % _perimeterLen;
+    _stepsTaken += num;
   }
 
   List<int> getPos() {
-    return [_perimeter[_idx].x, _perimeter[_idx].y];
+    if (_stepsTaken == 0) {
+      return [0, 0];
+    }
+    int idx = (_stepsTaken - 1) % _perimeterLen;
+    return [_states[idx].x, _states[idx].y];
   }
 
   String getDir() {
-    return _perimeter[_idx].dir;
+    if (_stepsTaken == 0) {
+      return 'East';
+    }
+    int idx = (_stepsTaken - 1) % _perimeterLen;
+    return _states[idx].dir;
   }
 }
 
-class _Cell {
+class _State {
   int x;
   int y;
   String dir;
-  _Cell(this.x, this.y, this.dir);
+  _State(this.x, this.y, this.dir);
 }
 
 // DRY RUN — Example 1
 // Robot(6,3)
-// Perimeter:
-// (0,0,E),(1,0,E),(2,0,E),(3,0,E),(4,0,E),(5,0,E),
-// (5,1,N),(5,2,N),
-// (4,2,W),(3,2,W),(2,2,W),(1,2,W),(0,2,W),
-// (0,1,S)
-// Total length = 6+2+5+1 = 14? Wait: width=6,height=3 -> perimeter = 2*6+2*3-4=12+6-4=14. Correct.
-//
-// step(2): _idx = 2 -> pos (2,0), dir East
-// step(2): _idx = 4 -> (4,0), East
-// getPos() -> [4,0]
-// getDir() -> "East"
-// step(2): _idx = 6 -> (5,1), North? Actually index 6 is (5,1) with dir North. Correct.
-// step(1): _idx = 7 -> (5,2), North
-// step(4): _idx = 11 -> (1,2), West? Let's verify: indices: 8:(4,2,W),9:(3,2,W),10:(2,2,W),11:(1,2,W). Yes.
-// getPos() -> [1,2], getDir() -> "West"
-// Matches example.
+// P = 2*(6+3)-4 = 14
+// Simulate 14 steps:
+//  1: (1,0,East)
+//  2: (2,0,East)
+//  ...
+//  7: (7,0,East)? Wait width=6 so max x=5. Actually:
+//  width=6, height=3.
+//  Steps simulation yields correct sequence as before.
+// Test case that failed now passes: after 176 steps on 8x2 grid, (0,0,South) is returned.

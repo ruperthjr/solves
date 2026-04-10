@@ -16,56 +16,51 @@ Because the robot always turns when it hits a wall, it never leaves the outer bo
 P = 2 × (width + height) - 4
 
 
-Every `P` steps, the robot returns exactly to its starting cell and direction.
+Every `P` steps, the robot returns to a state that is equivalent (but not necessarily identical to the start state – at corners, the direction may differ). After the first step, the state sequence repeats every `P` steps.
 
-### 3. Using the cycle to avoid step‑by‑step simulation
+### 3. Using simulation for one lap, then modulo for all steps
 
 `num` can be as large as `10^5`, but `P ≤ 400` (since `width,height ≤ 100`). We can:
-1. Precompute the sequence of `(x, y, direction)` for every cell along the perimeter, in the order the robot visits them.
-2. Keep a pointer `idx` to the robot's current position in this sequence.
-3. For `step(num)`, advance `idx` by `num % P` (modulo the cycle length) and update position/direction instantly.
+1. Simulate the robot for exactly `P` steps, recording the `(x, y, direction)` after **each** step.
+2. Keep a running total of steps taken (`_stepsTaken`).
+3. For `getPos` and `getDir`:
+   - If no steps taken, return start state `(0,0,"East")`.
+   - Otherwise, compute `idx = (_stepsTaken - 1) % P` and return the recorded state at that index.
 
-This makes every operation **O(1)**.
+This correctly handles the corner direction changes: e.g., after completing a lap on an `8×2` grid, the robot stops at `(0,0)` facing **South**, not East.
 
-### 4. Building the perimeter sequence
+### 4. Complexity
 
-We start at `(0,0)` facing East. The path is:
-- East along the bottom edge: `(0,0) → (width-1, 0)`.
-- North along the right edge: `(width-1, 1) → (width-1, height-1)`.
-- West along the top edge: `(width-2, height-1) → (0, height-1)`.
-- South along the left edge: `(0, height-2) → (0, 1)`.
-
-**Note:** We do not include `(0,0)` twice. The loop is closed naturally by the modulo arithmetic.
-
-We also record the **direction** the robot faces when standing still on that cell. For example, on the bottom edge it faces East; on the right edge it faces North, etc.
-
-### 5. Complexity
-
-- **Precomputation:** O(width + height) time and space.
+- **Precomputation:** O(P) time and space.
 - **Each method call:** O(1).
 
-### 6. Dry run (Example 1)
+### 5. Dry run of the previously failing test case
 
-`Robot(6,3)`
+`Robot(8,2)` → `P = 16`.
 
-Perimeter length = 2×(6+3) - 4 = 14.
+Simulated states (indices 0..15):
+0: (1,0,E)  
+1: (2,0,E)  
+2: (3,0,E)  
+3: (4,0,E)  
+4: (5,0,E)  
+5: (6,0,E)  
+6: (7,0,E)  
+7: (7,1,N)  
+8: (6,1,W)  
+9: (5,1,W)  
+10: (4,1,W)  
+11: (3,1,W)  
+12: (2,1,W)  
+13: (1,1,W)  
+14: (0,1,W)  
+15: (0,0,S)
 
-Sequence (index, x, y, dir):
-0: (0,0,E), 1: (1,0,E), 2: (2,0,E), 3: (3,0,E), 4: (4,0,E), 5: (5,0,E),
-6: (5,1,N), 7: (5,2,N),
-8: (4,2,W), 9: (3,2,W), 10: (2,2,W), 11: (1,2,W), 12: (0,2,W),
-13: (0,1,S).
+After `step(17)` → total steps = 17 → index = (17-1)%16 = 0 → (1,0,E) 
+After `step(21)` → total steps = 38 → index = (38-1)%16 = 37%16 = 5 → (6,0,E) 
+After `step(22)` + `step(34)` → total = 94 → index = (94-1)%16 = 93%16 = 13 → (1,1,W)
+After `step(1)` + `step(46)` + `step(35)` → total = 176 → index = (176-1)%16 = 175%16 = 15 → (0,0,S)
 
-- `step(2)` → idx = 2 → (2,0,E)
-- `step(2)` → idx = 4 → (4,0,E)
-- `getPos()` → [4,0], `getDir()` → "East"
-- `step(2)` → idx = 6 → (5,1,N)
-- `step(1)` → idx = 7 → (5,2,N)
-- `step(4)` → idx = 11 → (1,2,W)
-- `getPos()` → [1,2], `getDir()` → "West"
+### 6. Connection
 
-Matches expected output.
-
-### 7. Connection
-
-This problem is a more advanced version of “Walking Robot Simulation” (LeetCode 874). The key addition is the **cycle precomputation** to handle large step counts efficiently. It also resembles “Robot Bounded In Circle” in that the robot’s path is ultimately periodic.
+This problem is a more advanced version of “Walking Robot Simulation” (LeetCode 874). The key addition is the **cycle precomputation** to handle large step counts efficiently and to correctly manage corner direction states.
