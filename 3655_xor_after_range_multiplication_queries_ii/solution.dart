@@ -1,96 +1,201 @@
-// 2069. Walking Robot Simulation II
-// Difficulty: Medium
-// Topic: Design, Simulation
-// Runtime: O(1) per step (amortized) using modulo arithmetic on perimeter
-// Space:   O(width + height) for perimeter list
+// 3655. XOR After Range Multiplication Queries II
+// Difficulty: Hard
+// Topic: Array, Math, Prefix Product, Square Root Decomposition
+// Runtime: O((n + q) * sqrt(n)) — balanced by sqrt threshold
+// Space:   O(n)                     — result array + diff arrays
 //
-// INTUITION:
-// The robot only ever moves on the outer perimeter of the grid.
-// The perimeter forms a cycle of length P = 2*(width + height) - 4.
-// We can simulate the first P steps and store the resulting (x, y, dir) for each step.
-// For step(num), we add num to totalSteps and map (totalSteps-1) % P to the list.
-// This correctly handles the direction change at corners (e.g., (0,0) is East at start,
-// but South after completing a lap).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXPLANATION — read this before a single line of code
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// Picture a row of numbered buckets. You have many paint cans.
+// Each can says:
+//   "Start at bucket L, stop at bucket R, jump K buckets at a time,
+//    and multiply the number in each bucket you hit by V."
+//
+// If K is large (K > √n), you only touch a few buckets per can.
+// Just apply the paint directly — it's fast.
+//
+// If K is small (K ≤ √n), you might touch almost every bucket.
+// Doing that for many cans would take forever. BUT notice:
+// when K is small, the pattern repeats. Buckets that share the
+// same remainder when divided by K are always hit together.
+//
+// We group all queries with the same K and same starting remainder.
+// Then we use a "multiplication difference array" for that group:
+//   - mark where to start multiplying by V
+//   - mark where to stop (using modular inverse, like "dividing")
+//   - sweep once to apply all multiplications for that group.
+//
+// Finally, XOR all bucket values together.
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHY SQUARE ROOT DECOMPOSITION?
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// Direct simulation: O(q * (n/k)) per query → worst O(n*q) when k=1.
+// Too slow for 10^5. We split into two regimes:
+//   • Small K (≤ √n): process in batches by remainder. Each batch
+//     takes O(size of batch + #queries in group). Total work O(q*√n).
+//   • Large K (> √n): each query touches at most √n elements.
+//     Total work O(q*√n).
+// Together O((n+q)*√n) — fast enough.
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHY A DIFFERENCE ARRAY FOR MULTIPLICATION?
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// For addition, diff array: add at start, subtract after end.
+// For multiplication, we do: multiply at start, multiply by
+// modular inverse after end. Because prefix product then applies
+// the multiplier only within the range.
+// Modular inverse exists because MOD = 1e9+7 is prime.
 
-class Robot {
-  late int _width, _height;
-  late int _perimeterLen;
-  late List<_State> _states; // states after 1,2,...,P steps
-  int _stepsTaken = 0;
+import 'dart:math';
 
-  Robot(int width, int height) {
-    _width = width;
-    _height = height;
-    _perimeterLen = 2 * (width + height) - 4;
-    _states = [];
-    _buildPerimeterStates();
-  }
+class Solution {
+  static const int MOD = 1000000007;
 
-  void _buildPerimeterStates() {
-    // Simulate robot movement for _perimeterLen steps, recording state after each step.
-    int x = 0, y = 0;
-    int dir = 0; // 0: East, 1: North, 2: West, 3: South
-    const dirs = [
-      [1, 0],  // East
-      [0, 1],  // North
-      [-1, 0], // West
-      [0, -1]  // South
-    ];
-    const dirNames = ['East', 'North', 'West', 'South'];
+  int xorAfterQueries(List<int> nums, List<List<int>> queries) {
+    int n = nums.length;
+    int B = sqrt(n).ceil(); // threshold: sqrt(n)
 
-    for (int step = 0; step < _perimeterLen; step++) {
-      // Attempt to move one step in current direction
-      int nx = x + dirs[dir][0];
-      int ny = y + dirs[dir][1];
-      // If out of bounds, turn counter‑clockwise and recompute next step
-      if (nx < 0 || nx >= _width || ny < 0 || ny >= _height) {
-        dir = (dir + 1) % 4; // turn left (counter‑clockwise)
-        nx = x + dirs[dir][0];
-        ny = y + dirs[dir][1];
+    // Copy nums to modify
+    List<int> result = List<int>.from(nums);
+
+    // Separate queries into small K and large K
+    List<List<int>> largeKQueries = [];
+    Map<String, List<List<int>>> smallKGroups = {};
+
+    for (var q in queries) {
+      int l = q[0], r = q[1], k = q[2], v = q[3];
+      if (k > B) {
+        largeKQueries.add(q);
+      } else {
+        // Group key = "k|remainder" (l % k determines the starting offset)
+        String key = "$k|${l % k}";
+        smallKGroups.putIfAbsent(key, () => []).add(q);
       }
-      // Move to the new cell
-      x = nx;
-      y = ny;
-      _states.add(_State(x, y, dirNames[dir]));
     }
+
+    // 1. Large K queries: apply directly
+    for (var q in largeKQueries) {
+      int l = q[0], k = q[2], v = q[3];
+      int r = q[1];
+      for (int idx = l; idx <= r; idx += k) {
+        result[idx] = (result[idx] * v) % MOD;
+      }
+    }
+
+    // 2. Small K queries: process each (k, remainder) group
+    for (var entry in smallKGroups.entries) {
+      var parts = entry.key.split('|');
+      int k = int.parse(parts[0]);
+      int rem = int.parse(parts[1]);
+      var qs = entry.value;
+
+      // How many elements in this remainder class?
+      // Indices: rem, rem+k, rem+2k, ... ≤ n-1
+      int M = (n - 1 - rem) ~/ k + 1;
+      if (M <= 0) continue;
+
+      // Multiplication difference array (size M+1, initialized to 1)
+      List<int> multDiff = List<int>.filled(M + 1, 1);
+
+      for (var q in qs) {
+        int l = q[0], r = q[1], v = q[3];
+        // Convert real indices to positions in the virtual array
+        int leftIdx = (l - rem) ~/ k;
+        int rightIdx = (r - rem) ~/ k;
+
+        // Multiply at start
+        multDiff[leftIdx] = (multDiff[leftIdx] * v) % MOD;
+        // Multiply by inverse after end (to cancel the multiplication)
+        int invV = _modInverse(v);
+        multDiff[rightIdx + 1] = (multDiff[rightIdx + 1] * invV) % MOD;
+      }
+
+      // Sweep: apply prefix product to actual array
+      int currentMult = 1;
+      for (int i = 0; i < M; i++) {
+        currentMult = (currentMult * multDiff[i]) % MOD;
+        int actualIdx = rem + i * k;
+        result[actualIdx] = (result[actualIdx] * currentMult) % MOD;
+      }
+    }
+
+    // Compute XOR of all elements
+    int xorSum = 0;
+    for (int val in result) {
+      xorSum ^= val;
+    }
+    return xorSum;
   }
 
-  void step(int num) {
-    _stepsTaken += num;
+  // Modular inverse using Fermat's little theorem (MOD is prime)
+  int _modInverse(int x) {
+    return _modPow(x, MOD - 2);
   }
 
-  List<int> getPos() {
-    if (_stepsTaken == 0) {
-      return [0, 0];
+  int _modPow(int base, int exp) {
+    int res = 1;
+    int b = base % MOD;
+    int e = exp;
+    while (e > 0) {
+      if ((e & 1) == 1) res = (res * b) % MOD;
+      b = (b * b) % MOD;
+      e >>= 1;
     }
-    int idx = (_stepsTaken - 1) % _perimeterLen;
-    return [_states[idx].x, _states[idx].y];
-  }
-
-  String getDir() {
-    if (_stepsTaken == 0) {
-      return 'East';
-    }
-    int idx = (_stepsTaken - 1) % _perimeterLen;
-    return _states[idx].dir;
+    return res;
   }
 }
 
-class _State {
-  int x;
-  int y;
-  String dir;
-  _State(this.x, this.y, this.dir);
-}
-
-// DRY RUN — Example 1
-// Robot(6,3)
-// P = 2*(6+3)-4 = 14
-// Simulate 14 steps:
-//  1: (1,0,East)
-//  2: (2,0,East)
-//  ...
-//  7: (7,0,East)? Wait width=6 so max x=5. Actually:
-//  width=6, height=3.
-//  Steps simulation yields correct sequence as before.
-// Test case that failed now passes: after 176 steps on 8x2 grid, (0,0,South) is returned.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DRY RUN — Example 2
+// nums = [2,3,1,5,4]
+// queries = [[1,4,2,3], [0,2,1,2]]
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// n = 5, B = ceil(√5) = 3.
+//
+// Query 1: [1,4,2,3] → K=2 ≤ 3 → small group.
+//   remainder = 1%2 = 1. Key = "2|1".
+// Query 2: [0,2,1,2] → K=1 ≤ 3 → small group.
+//   remainder = 0%1 = 0. Key = "1|0".
+// No large K queries.
+//
+// Group "2|1" (indices with rem=1: 1, 3 → M=2)
+//   multDiff size 3 = [1,1,1].
+//   Q1: l=1,r=4,k=2,v=3 → leftIdx = (1-1)/2=0, rightIdx=(4-1)/2=1.
+//   multDiff[0] *= 3 → [3,1,1].
+//   inv(3)=333333336, multDiff[2] *= inv(3) → [3,1,333333336].
+//   Sweep:
+//     i=0: currentMult=3 → nums[1]=3*3=9.
+//     i=1: currentMult=3*333333336%MOD=1 → nums[3]=5*1=5? Wait 15*1=15.
+//   Array now: [2,9,1,15,4]
+//
+// Group "1|0" (all indices: M=5)
+//   multDiff size 6 = [1,1,1,1,1,1].
+//   Q2: l=0,r=2,v=2 → leftIdx=0, rightIdx=2.
+//   multDiff[0] *= 2 → [2,1,1,1,1,1].
+//   inv(2)=500000004, multDiff[3] *= inv(2) → [2,1,1,500000004,1,1].
+//   Sweep:
+//     i=0: cur=2 → nums[0]=2*2=4
+//     i=1: cur=2 → nums[1]=9*2=18
+//     i=2: cur=2 → nums[2]=1*2=2
+//     i=3: cur=2*500000004%MOD=1 → nums[3]=15*1=15
+//     i=4: cur=1 → nums[4]=4*1=4
+//   Final: [4,18,2,15,4]
+//
+// XOR: 4^18=22, 22^2=20, 20^15=27, 27^4=31.
+// Output: 31 
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PATTERN REFERENCE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// This problem is a multiplication version of "Range Addition"
+// (LeetCode 370) combined with square root decomposition.
+// The technique of splitting by step size appears in:
+//   - "Range Sum Query - Mutable" (sqrt decomposition)
+//   - "Count of Range Sum" (prefix sums with merging)
